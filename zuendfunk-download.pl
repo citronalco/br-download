@@ -86,7 +86,16 @@ foreach (@{$decodedProgramJSON->{'channelBroadcasts'}}) {
 	}
 
 	print "Downloading ".$filename."... ";
-	$mech->get($longestAudio{'downloadUrl'});
+
+	my $try=5;
+	do {
+	    $mech->get($longestAudio{'downloadUrl'});
+	} while (--$try>0 and !$mech->success());
+	if ($try==0) {
+	    print "failed.\n";
+	    next;
+	}
+
 	$mech->save_content($DESTDIR."/".$filename);
 
 	my $mp3file=MP3::Tag->new($DESTDIR."/".$filename);
