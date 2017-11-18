@@ -16,31 +16,30 @@ die ($DESTDIR." does not exist") unless ( -d $DESTDIR);
 
 my $url="http://www.br.de/radio/bayern2/sendungen/zuendfunk/programm-nachhoeren/index.html";
 
-
-my $mech=WWW::Mechanize->new();
-$mech->get($url) or die($!);
+my $browser=WWW::Mechanize->new();
+$browser->get($url) or die($!);
 
 # Auf der Seite $url kann man sich durch die letzten und kommenden Zündfunk-Sendungen klicken, die Daten dazu kommen aus einer JSON-Datei
-my $tree=HTML::TreeBuilder->new_from_content($mech->content());
+my $tree=HTML::TreeBuilder->new_from_content($browser->content());
 my $programDiv=$tree->look_down('_tag'=>'div','id'=>'program_stage');
 my ($programJSON)=$programDiv->attr('class')=~/jsonUrl:\'(.+)\'/;
-$mech->get($programJSON);
+$browser->get($programJSON);
 
 # JSON nach jeder verfügbaren Sendung durchgehen
-my $decodedProgramJSON=JSON::decode_json($mech->content);
+my $decodedProgramJSON=JSON::decode_json($browser->content);
 foreach (@{$decodedProgramJSON->{'channelBroadcasts'}}) {
 	next unless (($_->{'broadcastStartDate'}) and ($_->{'broadcastEndDate'}));	# Sendung ist noch in der Zukunft
 
 	my ($url)=$_->{'broadcastHtml'}=~/<a href=\"(.+?)\" title=\"/ or next;		# Seite einer Sendung
-	$mech->get($url) or die($!);	# sendungsseite aufrufen
+	$browser->get($url) or die($!);	# sendungsseite aufrufen
 
 	# auf der Sendungsseite ist entweder direkt ein Player, oder auf einer oder mehrerer Unterseite, oder es gibt gar keinen
-	my @possibleAudioPagesUrls=($url,map{ $_->url() } $mech->find_all_links('class_regex'=>qr/link_audio/));
+	my @possibleAudioPagesUrls=($url,map{ $_->url() } $browser->find_all_links('class_regex'=>qr/link_audio/));
 
 	my @xmlUrls;
 	foreach my $audioUrl (@possibleAudioPagesUrls) {
-	    $mech->get($audioUrl);
-	    my ($xmlUrl)=$mech->content()=~/dataURL:\'(\/.+xml)\'/;
+	    $browser->get($audioUrl);
+	    my ($xmlUrl)=$browser->content()=~/dataURL:\'(\/.+xml)\'/;
 	    if ($xmlUrl) {
 		push(@xmlUrls,$xmlUrl);
 	    }
@@ -51,8 +50,8 @@ foreach (@{$decodedProgramJSON->{'channelBroadcasts'}}) {
 	my %longestAudio=('durationInSeconds'=>0);
 
 	foreach my $xmlUrl (@xmlUrls) {
-	    $mech->get($xmlUrl);
-	    my $dom=XML::LibXML->load_xml(string=>$mech->content);
+	    $browser->get($xmlUrl);
+	    my $dom=XML::LibXML->load_xml(string=>$browser->content);
 
 	    # Duration ist HH:MM:SS, bei kürzeren Sachen auch mal MM:SS
 	    my $duration=$dom->findvalue('playlist/audio/duration');
@@ -86,17 +85,34 @@ foreach (@{$decodedProgramJSON->{'channelBroadcasts'}}) {
 	}
 
 	print "Downloading ".$filename."... ";
+	my ($tries,@parameters,$FD);
+	$tries=4;
+	@parameters=(
+	    $longestAudio{'downloadUrl'},     # URL
+	    ":content_cb" => sub {
+		my ($chunk) = @_;
+		print $FD $chunk;
+	    }
+	);
+	while ($tries) {
+	    open($FD,">>".$DESTDIR."/".$filename.".part");
 
-	my $try=5;
-	do {
-	    $mech->get($longestAudio{'downloadUrl'});
-	} while (--$try>0 and !$mech->success());
-	if ($try==0) {
+	    my $bytes=-s $DESTDIR."/".$filename.".part";
+	    if ($bytes > 0) {
+		push(@parameters,"Range"=>"bytes=".$bytes."-");
+	    }
+	    my $result=$browser->get(@parameters);
+	    close $FD;
+
+	    last if ($result->is_success or $result->code == 416);
+	    $tries--;
+	}
+	if ($tries eq 0) {
 	    print "failed.\n";
 	    next;
 	}
 
-	$mech->save_content($DESTDIR."/".$filename);
+	rename $DESTDIR."/".$filename.".part",$DESTDIR."/".$filename;
 
 	my $mp3file=MP3::Tag->new($DESTDIR."/".$filename);
 	$mp3file->get_tags();
@@ -106,6 +122,6 @@ foreach (@{$decodedProgramJSON->{'channelBroadcasts'}}) {
 	$id3v2->comment($longestAudio{'desc'});
 	$id3v2->write_tag();
 
-	$mech->back();
+	$browser->back();
 	print "done.\n";
 }
