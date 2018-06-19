@@ -8,6 +8,7 @@ use XML::LibXML;
 use JSON;
 use MP3::Tag;
 MP3::Tag->config(write_v24 => 1);
+use File::Spec;
 use utf8;
 
 my $DESTDIR=$ARGV[0];
@@ -79,7 +80,8 @@ foreach (@{$decodedProgramJSON->{'channelBroadcasts'}}) {
 	my $filename="Zündfunk ".join("-",reverse(split(/\./,$longestAudio{'broadcastDate'})))." - ".substr($longestAudio{'title'},0,80).".mp3";
 	$filename=~s/[^\w\s\-\.]/_/g;
 
-	if (-f $DESTDIR."/".$filename) {
+	my $file=File::Spec->join($DESTDIR,$filename);
+	if (-f $file) {
 	    print "File ".$filename." does already exist, skipping\n";
 	    next;
 	}
@@ -95,9 +97,9 @@ foreach (@{$decodedProgramJSON->{'channelBroadcasts'}}) {
 	    }
 	);
 	while ($tries) {
-	    open($FD,">>".$DESTDIR."/".$filename.".part");
+	    open($FD,">>".$file.".part");
 
-	    my $bytes=-s $DESTDIR."/".$filename.".part";
+	    my $bytes=-s $file.".part";
 	    if ($bytes > 0) {
 		push(@parameters,"Range"=>"bytes=".$bytes."-");
 	    }
@@ -112,9 +114,9 @@ foreach (@{$decodedProgramJSON->{'channelBroadcasts'}}) {
 	    next;
 	}
 
-	rename $DESTDIR."/".$filename.".part",$DESTDIR."/".$filename;
+	rename $file.".part",$file;
 
-	my $mp3file=MP3::Tag->new($DESTDIR."/".$filename);
+	my $mp3file=MP3::Tag->new($file);
 	$mp3file->get_tags();
 	my $id3v2=($mp3file->{ID3v2} or $mp3file->new_tag("ID3v2"));
 	$id3v2->artist("Zündfunk");
