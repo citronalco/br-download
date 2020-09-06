@@ -15,10 +15,10 @@ Python 3 with modules "mutagen", "urllib3" and "requests".
 ### Usage
 ```./zuendfunk-download.py <TargetDirectory>```
 
-The script searches Bayerischer Rundfunk's "Zündfunk" web site for recordings and downloads all currently available episodes into the given target directory.
+The script searches Bayerischer Rundfunk's web site and downloads all currently available "Zündfunk" episodes into the given target directory.
 Files aready present get skipped, so it is well suited for cron jobs.
 
-The show's metadata gets stored in the downloaded MP3 file's ID3 tags (see below).
+The show's metadata gets stored in the downloaded MP3 file's ID3 tag.
 
 
 **Example:**
