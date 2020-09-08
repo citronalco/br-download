@@ -7,12 +7,13 @@ import urllib.request
 import os.path
 import re
 from datetime import datetime, date
-from mutagen.id3 import ID3,ID3NoHeaderError,TRSN,TPE1,TALB,TRCK,TIT2,COMM,TYER,TDAT,TIME,TLEN,TDRL,CTOC,CHAP,WOAS,WORS,TLAN,APIC,CTOCFlags
+import time
+from mutagen.id3 import ID3,ID3NoHeaderError,TRSN,TPE1,TALB,TRCK,TIT2,COMM,TYER,TDAT,TIME,TLEN,WOAS,WORS,TLAN,APIC
 import shutil
 from tempfile import NamedTemporaryFile
 import lxml
 from bs4 import BeautifulSoup
-import pprint
+#import pprint
 
 baseUrl="http://www.br.de/radio/bayern2/sendungen/zuendfunk/programm-nachhoeren/index.html";
 
