@@ -1,4 +1,4 @@
-# Zündfunk Download
+# Zündfunk Download and Nachtmix Download
 
 Bayerischer Rundfunk airs a pretty decent radio show called "Zündunk", featuring new music, politics and culture.
 For people who missed a show, Bayerischer Rundfunk provides recordings on its web page.
@@ -7,6 +7,7 @@ But only for less than one week. And only within a player, without a convenient 
 That's why I wrote this Python 3 script.
 
 This Python 3 script is a simple command line tool to downloads all currently available Zündfunk episodes from Bayerischer Rundfunk's web page as MP3 files.
+The script "download-nachtmix.py" works the same way as "download-zuendfunk.py"
 
 ### Requirements
 Python 3 with modules "mutagen", "urllib3" and "requests".
