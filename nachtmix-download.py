@@ -242,4 +242,6 @@ for bc in broadcastJson['channelBroadcasts']:
 
     # done
     shutil.move(tmpFile, meta['filepath'])
+    os.chmod(meta['filepath'], 0o644)
+
     print("done.", flush=True)
