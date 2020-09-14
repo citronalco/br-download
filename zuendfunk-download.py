@@ -15,7 +15,7 @@ import lxml
 from bs4 import BeautifulSoup
 #import pprint
 
-baseUrl="http://www.br.de/radio/bayern2/sendungen/zuendfunk/programm-nachhoeren/index.html";
+baseUrl="https://www.br.de/radio/bayern2/sendungen/zuendfunk/programm-nachhoeren/index.html";
 
 def download(url: str, attempts=4):
     tmpfile = NamedTemporaryFile(delete=False)
@@ -111,8 +111,10 @@ for bc in broadcastJson['channelBroadcasts']:
                 dataUrl = match.group(1)
                 dataUrl = urllib.parse.urljoin(baseUrl, dataUrl)
 
-                # the dataURL contains the URL to a XML file with metadata for the media
-                xmls.append(lxml.etree.parse(dataUrl))
+                # dataURL is the URL to a XML file with metadata for the media
+                #xmls.append(lxml.etree.parse(dataUrl))
+                # lxml does not support HTTPS
+                xmls.append(lxml.etree.parse(urllib.request.urlopen(dataUrl)))
 
     # if nothing was found: continue with next episode
     if len(xmls) == 0:
