@@ -15,7 +15,8 @@ import lxml
 from bs4 import BeautifulSoup
 #import pprint
 
-baseUrl="https://www.br.de/radio/bayern2/sendungen/zuendfunk/programm-nachhoeren/index.html";
+baseUrl="https://www.br.de/radio/bayern2/sendungen/zuendfunk/programm-nachhoeren/index.html"
+playlistsBaseUrl="https://www.br.de/radio/bayern2/sendungen/zuendfunk/pop-platten/playlisten/index.html"
 
 def download(url: str, attempts=4):
     tmpfile = NamedTemporaryFile(delete=False)
@@ -56,6 +57,34 @@ def safe_text_get(l: list, idx: int, default=None):
         return l[idx].text
     except IndexError:
         return default
+
+def get_playlist_as_text(dt: datetime):
+    try:
+        # get website with calender entries with all available playlists
+        html = requests.get(playlistsBaseUrl, timeout=5).text
+        soup = BeautifulSoup(html, 'lxml')
+
+        # select day
+        dayLink = soup.find('a', class_=re.compile('^playlisten.+'), href=re.compile('.+_date\-'+dt.strftime("%Y")+'\-'+dt.strftime("%m")+'\-'+dt.strftime("%d")+'_.+\.html$'))['href']
+        dayUrl = urllib.parse.urljoin(playlistsBaseUrl, dayLink)
+
+        # follow link to playlist
+        html = requests.get(dayUrl, timeout=5).text
+        soup = BeautifulSoup(html, 'lxml')
+        plsLink = soup.find('a', class_=re.compile("^playlist\-\d+$"), href=re.compile('.+playlist\-\d+.html$'))['href']
+        plsUrl = urllib.parse.urljoin(playlistsBaseUrl, plsLink)
+
+        # read playlist
+        html = requests.get(plsUrl, timeout=5).text
+        soup = BeautifulSoup(html, 'lxml')
+
+        playlistEntries = []
+        for entry in soup.select('div.detail_content > p.copytext'):
+            playlistEntries.append(" - ".join(entry.find_all(text=True)))
+
+        return(" | ".join(playlistEntries))
+    except:
+        return None
 
 
 html = requests.get(baseUrl, timeout=5).text
@@ -151,6 +180,7 @@ for bc in broadcastJson['channelBroadcasts']:
         'filename': None,
         'filepath': None,
         'duration_ms': time2seconds(XMLmeta['duration']) * 1000,
+        'playlist_text': None,
     }
 
     ## Filter out some episodes
@@ -202,6 +232,12 @@ for bc in broadcastJson['channelBroadcasts']:
         print ("ERROR: Could not download %s" % url, file=sys.stderr)
         sys.exit(1)
 
+    # get playlist
+    playlist_text = get_playlist_as_text(meta['broadcastDate_dt'])
+    if playlist_text:
+        meta['playlist_text'] = "PLAYLIST: " + playlist_text
+
+
     # set ID3 tag
     try:
         tag = ID3(tmpFile)
@@ -215,7 +251,7 @@ for bc in broadcastJson['channelBroadcasts']:
     tag.add(TRCK(text=["1/1"]))
     #tag.add(TIT2(text=[meta['broadcastDate_dt'].strftime("%Y-%m-%d") + ": "+XMLmeta['title']]))
     tag.add(TIT2(text=[XMLmeta['title']]))
-    tag.add(COMM(lang="deu", desc="desc", text=[XMLmeta['desc']]))
+    tag.add(COMM(lang="deu", desc="desc", text=[ " /// ".join(filter(None, [XMLmeta['desc'], meta['playlist_text']]))]))
     tag.add(TYER(text=[meta['broadcastDate_dt'].strftime("%Y")]))
     tag.add(TDAT(text=[meta['broadcastDate_dt'].strftime("%d%m")]))
     tag.add(TIME(text=[meta['broadcastDate_dt'].strftime("%H%M")]))
