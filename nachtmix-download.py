@@ -15,7 +15,12 @@ import lxml
 from bs4 import BeautifulSoup
 #import pprint
 
-baseUrl="https://www.br.de/radio/bayern2/sendungen/nachtmix/index.html";
+
+baseUrl = "https://www.br.de/radio/bayern2/sendungen/nachtmix/index.html"
+playlistsBaseUrl = "https://www.br.de/radio/bayern2/sendungen/nachtmix/playlisten/index.html"
+minimalEpisodeDuration_ms = 45 * 60 * 1000
+showTitle = "Nachtmix"
+
 
 def download(url: str, attempts=4):
     tmpfile = NamedTemporaryFile(delete=False)
@@ -31,20 +36,6 @@ def download(url: str, attempts=4):
             pass
     return None
 
-if len(sys.argv) != 2:
-    print("Usage:", file=sys.stderr)
-    print("%s <DownloadDir>\n" % sys.argv[0], file=sys.stderr)
-    print("Example:", file=sys.stderr)
-    print("%s 'Downloads/Nachtmix Recordings'\n" % sys.argv[0], file=sys.stderr)
-    sys.exit(1)
-
-DESTDIR = sys.argv[1]
-
-if not os.path.isdir(DESTDIR):
-    print("Directory %s does not exist!" % DESTDIR, file=sys.stderr)
-    sys.exit(1)
-
-
 def time2seconds(timestr: str):
     # return duration of HH:MM:SS in seconds
     parts = re.split(":", timestr)
@@ -56,6 +47,48 @@ def safe_text_get(l: list, idx: int, default=None):
         return l[idx].text
     except IndexError:
         return default
+
+def get_playlist_as_text(dt: datetime):
+    try:
+        # get website with calender entries with all available playlists
+        html = requests.get(playlistsBaseUrl, timeout=5).text
+        soup = BeautifulSoup(html, 'lxml')
+
+        # select day
+        dayLink = soup.find('a', class_=re.compile('^playlisten.+'), href=re.compile('.+_date\-'+dt.strftime("%Y")+'\-'+dt.strftime("%m")+'\-'+dt.strftime("%d")+'_.+\.html$'))['href']
+        dayUrl = urllib.parse.urljoin(playlistsBaseUrl, dayLink)
+
+        # follow link to playlist
+        html = requests.get(dayUrl, timeout=5).text
+        soup = BeautifulSoup(html, 'lxml')
+        plsLink = soup.find('a', class_=re.compile("^playlist(\-"+showTitle.lower()+")?\-\d+$"), href=re.compile('.+playlist(\-'+showTitle.lower()+')?\-\d+.html$'))['href']
+        plsUrl = urllib.parse.urljoin(playlistsBaseUrl, plsLink)
+
+        # read playlist
+        html = requests.get(plsUrl, timeout=5).text
+        soup = BeautifulSoup(html, 'lxml')
+
+        playlistEntries = []
+        for entry in soup.select('div.detail_content > p.copytext'):
+            playlistEntries.append(" - ".join(entry.find_all(text=True)))
+
+        return(" | ".join(playlistEntries))
+    except:
+        return None
+
+
+if len(sys.argv) != 2:
+    print("Usage:", file=sys.stderr)
+    print("%s <DownloadDir>\n" % sys.argv[0], file=sys.stderr)
+    print("Example:", file=sys.stderr)
+    print("%s 'Downloads/%s Recordings'\n" % (sys.argv[0], showTitle), file=sys.stderr)
+    sys.exit(1)
+
+DESTDIR = sys.argv[1]
+
+if not os.path.isdir(DESTDIR):
+    print("Directory %s does not exist!" % DESTDIR, file=sys.stderr)
+    sys.exit(1)
 
 
 html = requests.get(baseUrl, timeout=5).text
@@ -151,14 +184,15 @@ for bc in broadcastJson['channelBroadcasts']:
         'filename': None,
         'filepath': None,
         'duration_ms': time2seconds(XMLmeta['duration']) * 1000,
+        'playlist_text': None,
     }
 
     ## Filter out some episodes
-    # I know that a real Nachtmix episode is longer than 45 minutes. Skip this episode if it is shorter
-    if meta['duration_ms']  < 45 * 60 * 1000:
+    # Skip this episode if it is shorter than defined minimal duration
+    if meta['duration_ms']  < minimalEpisodeDuration_ms:
         continue
-    # Skip all non "Nachtmix" broadcasts
-    if XMLmeta['broadcast'].lower() != 'nachtmix':
+    # Skip this episode if "Broadcast" is not matching the show's title
+    if XMLmeta['broadcast'].lower() != showTitle.lower():
         continue
 
 
@@ -177,7 +211,7 @@ for bc in broadcastJson['channelBroadcasts']:
 
 
     ## Populate values in "meta" dict
-    # agf_c9 looks like "Nachtmix_Nachtmix_27.08.2020_23:05"
+    # agf_c9 looks like "Zündfunk_Zündfunk_27.08.2020_19:05" or "Zündfunk_Zündfunk Generator_30.08.2020_22:05" or "Nachtmix_Nachtmix_27.08.2020_23:05"
     # so it can be used to extract the episode's exact broadcast time
     try:
         parts = XMLmeta['agf_c9'].split('_')
@@ -202,6 +236,12 @@ for bc in broadcastJson['channelBroadcasts']:
         print ("ERROR: Could not download %s" % url, file=sys.stderr)
         sys.exit(1)
 
+    # get playlist
+    playlist_text = get_playlist_as_text(meta['broadcastDate_dt'])
+    if playlist_text:
+        meta['playlist_text'] = "PLAYLIST: " + playlist_text
+
+
     # set ID3 tag
     try:
         tag = ID3(tmpFile)
@@ -215,7 +255,7 @@ for bc in broadcastJson['channelBroadcasts']:
     tag.add(TRCK(text=["1/1"]))
     #tag.add(TIT2(text=[meta['broadcastDate_dt'].strftime("%Y-%m-%d") + ": "+XMLmeta['title']]))
     tag.add(TIT2(text=[XMLmeta['title']]))
-    tag.add(COMM(lang="deu", desc="desc", text=[XMLmeta['desc']]))
+    tag.add(COMM(lang="deu", desc="desc", text=[ " /// ".join(filter(None, [XMLmeta['desc'], meta['playlist_text']]))]))
     tag.add(TYER(text=[meta['broadcastDate_dt'].strftime("%Y")]))
     tag.add(TDAT(text=[meta['broadcastDate_dt'].strftime("%d%m")]))
     tag.add(TIME(text=[meta['broadcastDate_dt'].strftime("%H%M")]))

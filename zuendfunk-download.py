@@ -15,8 +15,12 @@ import lxml
 from bs4 import BeautifulSoup
 #import pprint
 
+
 baseUrl="https://www.br.de/radio/bayern2/sendungen/zuendfunk/programm-nachhoeren/index.html"
 playlistsBaseUrl="https://www.br.de/radio/bayern2/sendungen/zuendfunk/pop-platten/playlisten/index.html"
+minimalEpisodeDuration_ms = 45 * 60 * 1000
+showTitle = "Zündfunk"
+
 
 def download(url: str, attempts=4):
     tmpfile = NamedTemporaryFile(delete=False)
@@ -31,20 +35,6 @@ def download(url: str, attempts=4):
         except:
             pass
     return None
-
-if len(sys.argv) != 2:
-    print("Usage:", file=sys.stderr)
-    print("%s <DownloadDir>\n" % sys.argv[0], file=sys.stderr)
-    print("Example:", file=sys.stderr)
-    print("%s 'Downloads/Zündfunk Recordings'\n" % sys.argv[0], file=sys.stderr)
-    sys.exit(1)
-
-DESTDIR = sys.argv[1]
-
-if not os.path.isdir(DESTDIR):
-    print("Directory %s does not exist!" % DESTDIR, file=sys.stderr)
-    sys.exit(1)
-
 
 def time2seconds(timestr: str):
     # return duration of HH:MM:SS in seconds
@@ -71,7 +61,7 @@ def get_playlist_as_text(dt: datetime):
         # follow link to playlist
         html = requests.get(dayUrl, timeout=5).text
         soup = BeautifulSoup(html, 'lxml')
-        plsLink = soup.find('a', class_=re.compile("^playlist\-\d+$"), href=re.compile('.+playlist\-\d+.html$'))['href']
+        plsLink = soup.find('a', class_=re.compile("^playlist(\-"+showTitle.lower()+")?\-\d+$"), href=re.compile('.+playlist(\-'+showTitle.lower()+')?\-\d+.html$'))['href']
         plsUrl = urllib.parse.urljoin(playlistsBaseUrl, plsLink)
 
         # read playlist
@@ -85,6 +75,20 @@ def get_playlist_as_text(dt: datetime):
         return(" | ".join(playlistEntries))
     except:
         return None
+
+
+if len(sys.argv) != 2:
+    print("Usage:", file=sys.stderr)
+    print("%s <DownloadDir>\n" % sys.argv[0], file=sys.stderr)
+    print("Example:", file=sys.stderr)
+    print("%s 'Downloads/%s Recordings'\n" % (sys.argv[0], showTitle), file=sys.stderr)
+    sys.exit(1)
+
+DESTDIR = sys.argv[1]
+
+if not os.path.isdir(DESTDIR):
+    print("Directory %s does not exist!" % DESTDIR, file=sys.stderr)
+    sys.exit(1)
 
 
 html = requests.get(baseUrl, timeout=5).text
@@ -156,7 +160,7 @@ for bc in broadcastJson['channelBroadcasts']:
     # extract metadata from XML with longest audio
     XMLmeta = {
         'topline': safe_text_get(xmls[0].xpath("./audio/topline"),0),
-        'title': safe_text_get(xmls[0].xpath("./audio/title"),0),
+        'title': re.sub("^Jetzt nachhören: ","", safe_text_get(xmls[0].xpath("./audio/title"),0)),
         'shareTitle': safe_text_get(xmls[0].xpath("./audio/shareTitle"),0),
         'duration': safe_text_get(xmls[0].xpath("./audio/duration"),0),
         'channel': safe_text_get(xmls[0].xpath("./audio/channel"),0,"BAYERN 2"),
@@ -184,11 +188,11 @@ for bc in broadcastJson['channelBroadcasts']:
     }
 
     ## Filter out some episodes
-    # I know that a real Zündfunk episode is longer than 45 minutes. Skip this episode if it is shorter
-    if meta['duration_ms']  < 45 * 60 * 1000:
+    # Skip this episode if it is shorter than defined minimal duration
+    if meta['duration_ms']  < minimalEpisodeDuration_ms:
         continue
-    # Skip all non "Zündfunk" broadcasts like "Zündfunk Generator" (which has an official podcast feed)
-    if XMLmeta['broadcast'].lower() != 'zündfunk':
+    # Skip this episode if "Broadcast" is not matching the show's title
+    if XMLmeta['broadcast'].lower() != showTitle.lower():
         continue
 
 
@@ -207,7 +211,7 @@ for bc in broadcastJson['channelBroadcasts']:
 
 
     ## Populate values in "meta" dict
-    # agf_c9 looks like "Zündfunk_Zündfunk_27.08.2020_19:05" or "Zündfunk_Zündfunk Generator_30.08.2020_22:05"
+    # agf_c9 looks like "Zündfunk_Zündfunk_27.08.2020_19:05" or "Zündfunk_Zündfunk Generator_30.08.2020_22:05" or "Nachtmix_Nachtmix_27.08.2020_23:05"
     # so it can be used to extract the episode's exact broadcast time
     try:
         parts = XMLmeta['agf_c9'].split('_')
@@ -279,5 +283,5 @@ for bc in broadcastJson['channelBroadcasts']:
     # done
     shutil.move(tmpFile, meta['filepath'])
     os.chmod(meta['filepath'], 0o644)
-    
+
     print("done.", flush=True)
