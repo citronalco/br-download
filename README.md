@@ -1,4 +1,4 @@
-# Zündfunk Download and Nachtmix Download
+# Zündfunk Download / Nachtmix Download
 
 Bayerischer Rundfunk airs a pretty decent radio show called "Zündunk", featuring new music, politics and culture.
 For people who missed a show, Bayerischer Rundfunk provides recordings on its web page.
