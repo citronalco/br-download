@@ -28,3 +28,6 @@ If a playlist is available for the episode it gets written in ID3 tag's "Comment
 ```./zuendfunk-download.py Downloads/Zündfunk```
 
 This would download all available Zündfunk episodes and save them with correct ID3 tags in the "Downloads/Zündfunk" directory.
+
+### See also
+If you want to listen to the downloaded shows with your podcast player: https://github.com/citronalco/mp3-to-rss2feed creates a RSS2 feed from MP3 files.
