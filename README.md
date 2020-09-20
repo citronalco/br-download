@@ -11,8 +11,8 @@ This Python 3 script is a simple command line tool to downloads all currently av
 The script "download-nachtmix.py" works the same way as "download-zuendfunk.py"
 
 ### Requirements
-Python 3 with modules "mutagen", "urllib3" and "requests".
-(On Debian/Ubuntu: `sudo apt install python3 python3-mutagen python3-urllib3 python3-requests`)
+Python 3 with modules "mutagen", "beautifulsoup4" and "requests".
+(On Debian/Ubuntu: `sudo apt install python3 python3-mutagen python3-requests python3-bs4`)
 
 ### Usage
 ```./zuendfunk-download.py <TargetDirectory>```
