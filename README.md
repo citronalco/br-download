@@ -1,6 +1,6 @@
 # BR Downloader
 
-Download your favourite radio shows from Bayerischer Runfunk!
+Download your favourite radio shows from Bayerischer Rundfunk!
 
 This is a Python 3 command line script to download shows from any channel from Bayerischer Rundfunk's "Live" web site.
 The shows are saved in MP3 format and get tagged with all available information, including chapter markers.
