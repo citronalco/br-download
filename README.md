@@ -12,10 +12,11 @@ Python 3 with modules "pydub", "mutagen", "beautifulsoup4" and "requests".
 ### Usage
 ```./br-download.py <Channel> <Show> <TargetDirectory>```
 
-* `Channel` can be something like "Bayern2", "BR-Klassik", "BR24", "Puls", ...
-* `Show` is the show's title as displayed in BR's "Live" (player https://www.br.de/radio/live/)
 * `TargetDirectory` is the directory you want the MP3 files get saved in
+* `Show` is the show's title as displayed in BR's "Live" (player https://www.br.de/radio/live/)
+* `Channel` can be something like "bayern2", "br-klassik", "br24", "puls", as seen in the URL of the "Live" player.
 
+`Show` and `Channel` are case insensitive. \
 Episodes aready downloaded get skipped, so this script is well suited for cron jobs.
 
 **Example:**
