@@ -111,7 +111,7 @@ for broadcast in reversed(foundBroadcasts):
       DESTDIR,
       re.sub(
           '[^\w\s\-\.\[\]]', '_',
-          broadcast['trackingInfos']['pageVars']['broadcast_service'] + ' ' + broadcast['trackingInfos']['pageVars']['topline'] + ' ' + broadcastStartDT.astimezone(pytz.timezone('Europe/Berlin')).strftime("%Y-%m-%d %H:%M")
+          broadcast['trackingInfos']['pageVars']['broadcast_service'] + ' ' + broadcastStartDT.astimezone(pytz.timezone('Europe/Berlin')).strftime("%Y-%m-%d %H:%M") + ' ' + broadcast['trackingInfos']['pageVars']['topline']
       ) + ".mp3"
   )
 
@@ -151,8 +151,9 @@ for broadcast in reversed(foundBroadcasts):
   tags.add(TPE1(text=[broadcast['trackingInfos']['pageVars']['broadcast_service']]))
   tags.add(TALB(text=[ " - ".join(list(dict.fromkeys([ broadcast['trackingInfos']['pageVars']['topline'], broadcast['trackingInfos']['pageVars']['title'] ])))]))
   tags.add(TRCK(text=['1/1']))
-  tags.add(TIT2(text=[broadcastStartDT.astimezone(pytz.timezone('Europe/Berlin')).strftime("%Y-%m-%d %H:%M")]))
-  tags.add(COMM(lang="deu", desc="desc", text=[ broadcast['publicationOf']['description'] ]))
+  #tags.add(TIT2(text=[broadcastStartDT.astimezone(pytz.timezone('Europe/Berlin')).strftime("%Y-%m-%d %H:%M")]))
+  tags.add(TIT2(text=[broadcast['publicationOf']['title']]))
+  tags.add(COMM(lang="deu", desc="desc", text=[broadcast['publicationOf']['description']]))
   tags.add(TYER(text=[broadcastStartDT.astimezone(pytz.timezone('Europe/Berlin')).strftime("%Y")]))
   tags.add(TDAT(text=[broadcastStartDT.astimezone(pytz.timezone('Europe/Berlin')).strftime("%d%m")]))
   tags.add(TIME(text=[broadcastStartDT.astimezone(pytz.timezone('Europe/Berlin')).strftime("%H%M")]))
