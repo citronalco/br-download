@@ -246,6 +246,9 @@ def main():
 
     # search in EPG for broadcasts of requested show
     for broadcast in reversed(epgData['data']['audioBroadcastService']['epg']):
+      # skip empty entries
+      if broadcast['broadcastEvent'] is None:
+        continue
       # skip broadcasts not having ended yet
       if parse(broadcast['broadcastEvent']['end']) > datetime.now(tz=pytz.timezone('Europe/Berlin')):
         continue
