@@ -10,18 +10,19 @@ import json
 from datetime import datetime, date, timedelta
 from dateutil.parser import parse
 import pytz
-from mutagen.id3 import ID3,ID3NoHeaderError,TRSN,TPE1,TALB,TRCK,TIT2,COMM,TYER,TDAT,TIME,TLEN,CTOC,CHAP,WOAS,WORS,APIC,TRSO,TCON,CTOCFlags
+from mutagen.id3 import ID3,ID3NoHeaderError,TRSN,TPE1,TALB,TRCK,TIT2,COMM,TYER,TDAT,TIME,TLEN,CTOC,CHAP,WOAS,WORS,APIC,TRSO,TCON,WXXX,CTOCFlags,Encoding
 import av
 import requests
 
 
-# Some basic URLs discovered within browser
+# Some basic URLs discovered with browser's network console
+# On https://www.br.de/radio/live look for URLs containing "broadcastservices"
 AUDIO_BROADCAST_SERVICES_URL = """
   https://brradio.br.de/radio/v4?query=query broadcastServices{audioBroadcastServices{trackingInfos{pageVars}
   nodes{id dvbServiceId name slug logo(type:SQUARE){url}logoSVG:logo(type:SQUARE,format:SVG){url}url sophoraLivestreamDocuments
   {sophoraId streamingUrl title reliveUrl trackingInfos{mediaVars}}}}}
   """
-
+# After switching to BR2, click on "Programm" and look for URLs containg "mangoday" 
 EPG_URL = """
   https://brradio.br.de/radio/v4?query=query broadcastDayProgram($stationSlug:String!,$day:MangoDay){audioBroadcastService(slug:$stationSlug)
   {... on AudioBroadcastService{epg(day:$day){broadcastEvent{id start end trackingInfos{pageVars mediaVars}items{guid start duration class
@@ -172,25 +173,25 @@ def download(broadcast_event, target_directory, segment_urls):
     tags = ID3()
 
   # ID3: save as much information as possible in the ID3 tags
-  tags.add(TRSN(text=[broadcast_event['trackingInfos']['pageVars']['broadcast_service']]))   # Internet radio station name
-  tags.add(TRSO(text=['Bayerischer Rundfunk']))                                             # Internet radio station owner
-  tags.add(WOAS(url=broadcast_event['publicationOf']['canonicalUrl']))                       # Official audio source webpage
-  tags.add(WORS(url="https://www.br.de/radio/"))                                            # Official Internet radio station homepage
-  tags.add(TCON(text=["Radio Recording"]))                                                  # Content Description
-  tags.add(TPE1(text=[broadcast_event['trackingInfos']['pageVars']['broadcast_service']]))   # Lead performer(s)/Soloist(s) -> CHANNEL
-  tags.add(TALB(text=[ " - ".join(list(                                                     # Album/Movie/Show title
+  tags.add(TRSN(text=[broadcast_event['trackingInfos']['pageVars']['broadcast_service']]))          # Internet radio station name
+  tags.add(TRSO(text=['Bayerischer Rundfunk']))                                                     # Internet radio station owner
+  tags.add(WOAS(url=broadcast_event['publicationOf']['canonicalUrl']))                              # Official audio source webpage
+  tags.add(WORS(url="https://www.br.de/radio/"))                                                    # Official Internet radio station homepage
+  tags.add(TCON(text=["Radio Recording"]))                                                          # Content Description
+  tags.add(TPE1(text=[broadcast_event['trackingInfos']['pageVars']['broadcast_service']]))          # Lead performer(s)/Soloist(s) -> CHANNEL
+  tags.add(TALB(text=[ " - ".join(list(                                                             # Album/Movie/Show title
     dict.fromkeys([ broadcast_event['trackingInfos']['pageVars']['topline'],
                    broadcast_event['trackingInfos']['pageVars']['title'] ])
     ))]))
-  tags.add(TRCK(text=['1/1']))                                                              # Track number/Position in set
-  tags.add(TIT2(text=[                                                                      # Title/songname/content description
+  tags.add(TRCK(text=['1/1']))                                                                      # Track number/Position in set
+  tags.add(TIT2(text=[                                                                              # Title/songname/content description
     f"{broadcast_event['publicationOf']['title']} [{start_dt.astimezone(pytz.timezone('Europe/Berlin')).strftime('%Y-%m-%d %H:%M')}]"
   ]))
-  tags.add(COMM(lang="deu", desc="desc", text=[broadcast_event['publicationOf']['description']]))  # Comments
-  tags.add(TYER(text=[start_dt.astimezone(pytz.timezone('Europe/Berlin')).strftime("%Y")]))       # Year of broadcast
-  tags.add(TDAT(text=[start_dt.astimezone(pytz.timezone('Europe/Berlin')).strftime("%d%m")]))     # Month and day of broadcast
-  tags.add(TIME(text=[start_dt.astimezone(pytz.timezone('Europe/Berlin')).strftime("%H%M")]))     # Time of broadcast
-  tags.add(TLEN(text=[int((end_dt - start_dt).total_seconds() * 1000)]))                          # Duration in ms
+  tags.add(COMM(lang="deu", desc="desc", text=[broadcast_event['publicationOf']['description']]))    # Comments
+  tags.add(TYER(text=[start_dt.astimezone(pytz.timezone('Europe/Berlin')).strftime("%Y")]))          # Year of broadcast
+  tags.add(TDAT(text=[start_dt.astimezone(pytz.timezone('Europe/Berlin')).strftime("%d%m")]))        # Month and day of broadcast
+  tags.add(TIME(text=[start_dt.astimezone(pytz.timezone('Europe/Berlin')).strftime("%H%M")]))        # Time of broadcast
+  tags.add(TLEN(text=[int((end_dt - start_dt).total_seconds() * 1000)]))                             # Duration in ms
 
   # ID3: chapters
   chapter_number = 0
@@ -244,9 +245,11 @@ def download(broadcast_event, target_directory, segment_urls):
   if response.status_code == 200:
     tags.add(APIC(
       mime = response.headers['content-type'],
-      desc="Front Cover",
+      desc = "Front Cover",
       data = response.content
     ))
+
+    tags.add(WXXX(encoding = Encoding.UTF8, desc = "Cover Image", url = broadcast_event['publicationOf']['defaultTeaserImage']['url'] ))
 
   # save ID3 tags
   tags.save(filename + '.temp', v2_version=3)

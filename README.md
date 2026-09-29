@@ -26,6 +26,7 @@ options:
 ```
 
 `ShowTitle` may contain Regular Expressions.
+If br-download.py seems to do nothing, you probably have the ShowTitle wrong.
 
 ### Examples
 ##### Download newest "Zündfunk" episode from Bayern 2:
